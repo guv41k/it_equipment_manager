@@ -3,7 +3,10 @@ export
 
 export PROJECT_ROOT=${shell pwd}
 
-.PHONY: env-up env-down env-ps env-logs env-cleanup env-port-forward env-port-close migrate-create migrate-up migrate-down migrate-action
+.PHONY: run env-up env-down env-ps env-logs env-cleanup env-port-forward env-port-close migrate-create migrate-up migrate-down migrate-action
+
+run:
+	@go run ./cmd/managerapp
 
 env-up:
 	@docker compose up -d managerapp-postgres managerapp-kafka managerapp-clickhouse
