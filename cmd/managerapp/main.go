@@ -9,7 +9,7 @@ import (
 	"syscall"
 
 	core_logger "gitlab.com/guv41k/it_equipment_manager/internal/core/logger"
-	core_postgres_pool "gitlab.com/guv41k/it_equipment_manager/internal/core/repository/postgres/pool"
+	core_pgx_pool "gitlab.com/guv41k/it_equipment_manager/internal/core/repository/postgres/pool/pgx"
 	core_http_middleware "gitlab.com/guv41k/it_equipment_manager/internal/core/transport/http/middleware"
 	core_http_server "gitlab.com/guv41k/it_equipment_manager/internal/core/transport/http/server"
 	"go.uber.org/zap"
@@ -48,11 +48,11 @@ func run(ctx context.Context) (err error) {
 	}()
 
 	logger.Debug("initializing postgres connection pool")
-	postgresConfig, err := core_postgres_pool.NewConfig()
+	postgresConfig, err := core_pgx_pool.NewConfig()
 	if err != nil {
 		return fmt.Errorf("load postgres config: %w", err)
 	}
-	pool, err := core_postgres_pool.NewConnectionPool(ctx, postgresConfig)
+	pool, err := core_pgx_pool.NewPool(ctx, postgresConfig)
 	if err != nil {
 		return fmt.Errorf("connect to postgres: %w", err)
 	}
@@ -69,7 +69,8 @@ func run(ctx context.Context) (err error) {
 		pool,
 		core_http_middleware.RequestID(),
 		core_http_middleware.Logger(logger),
-		core_http_middleware.Recover(logger),
+		core_http_middleware.Trace(),
+		core_http_middleware.Panic(),
 	)
 	if err := httpServer.Run(ctx); err != nil {
 		return fmt.Errorf("run HTTP server: %w", err)
