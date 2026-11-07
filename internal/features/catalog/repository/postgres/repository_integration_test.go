@@ -20,6 +20,7 @@ var (
 	_ catalog_service.CategoriesRepository = (*CategoriesRepository)(nil)
 	_ catalog_service.LocationsRepository  = (*LocationsRepository)(nil)
 )
+
 func TestCatalogRepositoryPostgres(t *testing.T) {
 	dsn := os.Getenv("CATALOG_TEST_DSN")
 	if dsn == "" {
