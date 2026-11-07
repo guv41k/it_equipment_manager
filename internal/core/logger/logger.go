@@ -1,6 +1,7 @@
 package core_logger
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -15,6 +16,20 @@ import (
 type Logger struct {
 	*zap.Logger
 	file *os.File
+}
+
+type loggerContextKey struct{}
+
+func ToContext(ctx context.Context, log *Logger) context.Context {
+	return context.WithValue(ctx, loggerContextKey{}, log)
+}
+
+func FromContext(ctx context.Context) *Logger {
+	log, ok := ctx.Value(loggerContextKey{}).(*Logger)
+	if !ok {
+		panic("no logger in context")
+	}
+	return log
 }
 
 func NewLogger(config Config) (*Logger, error) {

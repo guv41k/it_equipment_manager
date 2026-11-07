@@ -88,7 +88,7 @@ func readLog(t *testing.T, logger *core_logger.Logger, folder string) string {
 	return string(content)
 }
 
-func TestLoggerRecordsImplicitStatusWithoutQuery(t *testing.T) {
+func TestTraceRecordsImplicitStatusWithoutQuery(t *testing.T) {
 	logger, folder := testLogger(t)
 	handler := ChainMiddleware(
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -96,6 +96,7 @@ func TestLoggerRecordsImplicitStatusWithoutQuery(t *testing.T) {
 		}),
 		RequestID(),
 		Logger(logger),
+		Trace(),
 	)
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/items?token=private", nil))
@@ -112,7 +113,7 @@ func TestLoggerRecordsImplicitStatusWithoutQuery(t *testing.T) {
 	}
 }
 
-func TestRecoverReturnsInternalErrorAndLogsPanic(t *testing.T) {
+func TestPanicReturnsInternalErrorAndLogsPanic(t *testing.T) {
 	logger, folder := testLogger(t)
 	handler := ChainMiddleware(
 		http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
@@ -120,7 +121,8 @@ func TestRecoverReturnsInternalErrorAndLogsPanic(t *testing.T) {
 		}),
 		RequestID(),
 		Logger(logger),
-		Recover(logger),
+		Trace(),
+		Panic(),
 	)
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/items", nil))
