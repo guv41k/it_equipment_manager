@@ -10,6 +10,7 @@ import (
 
 	core_logger "gitlab.com/guv41k/it_equipment_manager/internal/core/logger"
 	core_postgres_pool "gitlab.com/guv41k/it_equipment_manager/internal/core/repository/postgres/pool"
+	core_http_server "gitlab.com/guv41k/it_equipment_manager/internal/core/transport/http/server"
 	"go.uber.org/zap"
 )
 
@@ -57,7 +58,13 @@ func run(ctx context.Context) (err error) {
 	defer pool.Close()
 
 	logger.Info("postgres connection ready", zap.String("database", postgresConfig.Database))
-	<-ctx.Done()
-	logger.Info("shutting down")
+	httpConfig, err := core_http_server.NewConfig()
+	if err != nil {
+		return fmt.Errorf("load HTTP config: %w", err)
+	}
+	httpServer := core_http_server.NewHTTPServer(httpConfig, logger, pool)
+	if err := httpServer.Run(ctx); err != nil {
+		return fmt.Errorf("run HTTP server: %w", err)
+	}
 	return nil
 }
