@@ -225,6 +225,52 @@ func TestCatalogEmptyList(t *testing.T) {
 	}
 }
 
+func TestCatalogRejectsAdditionalJSON(t *testing.T) {
+	tests := []struct {
+		name   string
+		method string
+		path   string
+		body   string
+		status int
+		called string
+	}{
+		{
+			name:   "second JSON object",
+			method: http.MethodPost,
+			path:   "/api/v1/equipment-categories",
+			body:   `{"name":"Ноутбук"} {"name":"Монитор"}`,
+			status: http.StatusBadRequest,
+		},
+		{
+			name:   "trailing non-JSON text",
+			method: http.MethodPut,
+			path:   "/api/v1/locations/2",
+			body:   `{"name":"Склад"} unexpected`,
+			status: http.StatusBadRequest,
+		},
+		{
+			name:   "trailing whitespace",
+			method: http.MethodPost,
+			path:   "/api/v1/equipment-categories",
+			body:   "{\"name\":\"Ноутбук\"} \n\t",
+			status: http.StatusCreated,
+			called: "create category",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			service := &catalogServiceStub{}
+			response := sendCatalogRequest(testCatalogRouter(t, service), test.method, test.path, test.body)
+			if response.Code != test.status || service.called != test.called {
+				t.Fatalf("status = %d, service called = %q, response = %s", response.Code, service.called, response.Body.String())
+			}
+			if test.status == http.StatusBadRequest && !strings.Contains(response.Body.String(), `"error":"invalid_request"`) {
+				t.Fatalf("invalid request response = %s", response.Body.String())
+			}
+		})
+	}
+}
+
 func TestCatalogValidatesRequestAndMapsErrors(t *testing.T) {
 	service := &catalogServiceStub{}
 	router := testCatalogRouter(t, service)
