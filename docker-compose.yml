@@ -1,8 +1,8 @@
 services:
 
-  manager-app-postgres:
+  managerapp-postgres:
     image: postgres:18.1-bookworm
-    container_name: manager-app-env-postgres
+    container_name: managerapp-env-postgres
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -25,25 +25,25 @@ services:
 
   port-forwarder:
     image: alpine/socat:1.8.0.3
-    container_name: manager-app-postgres-port-forwarder
-    command: tcp-listen:5432,fork,reuseaddr tcp-connect:manager-app-postgres:5432
+    container_name: managerapp-postgres-port-forwarder
+    command: tcp-listen:5432,fork,reuseaddr tcp-connect:managerapp-postgres:5432
     ports:
       - "127.0.0.1:5432:5432"
     depends_on:
-      manager-app-postgres:
+      managerapp-postgres:
         condition: service_healthy
 
-  manager-app-kafka:
+  managerapp-kafka:
     image: apache/kafka:4.1.2
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: INTERNAL://:19092,EXTERNAL://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://manager-app-kafka:19092,EXTERNAL://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://managerapp-kafka:19092,EXTERNAL://localhost:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@manager-app-kafka:9093
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@managerapp-kafka:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -53,7 +53,7 @@ services:
     volumes:
       - ${PROJECT_ROOT}/out/kafka:/tmp/kraft-combined-logs
 
-  manager-app-clickhouse:
+  managerapp-clickhouse:
     image: clickhouse/clickhouse-server:26.8
     environment:
       CLICKHOUSE_DB: ${CLICKHOUSE_DB}
