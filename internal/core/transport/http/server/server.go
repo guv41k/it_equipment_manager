@@ -9,20 +9,23 @@ import (
 	"time"
 
 	core_logger "gitlab.com/guv41k/it_equipment_manager/internal/core/logger"
+	core_http_middleware "gitlab.com/guv41k/it_equipment_manager/internal/core/transport/http/middleware"
 	"go.uber.org/zap"
 )
 
 type HTTPServer struct {
-	mux    *http.ServeMux
-	config Config
-	log    *core_logger.Logger
+	mux        *http.ServeMux
+	config     Config
+	log        *core_logger.Logger
+	middleware []core_http_middleware.Middleware
 }
 
-func NewHTTPServer(config Config, log *core_logger.Logger, db ReadinessChecker) *HTTPServer {
+func NewHTTPServer(config Config, log *core_logger.Logger, db ReadinessChecker, middleware ...core_http_middleware.Middleware) *HTTPServer {
 	server := &HTTPServer{
-		mux:    http.NewServeMux(),
-		config: config,
-		log:    log,
+		mux:        http.NewServeMux(),
+		config:     config,
+		log:        log,
+		middleware: middleware,
 	}
 	server.registerHealthRoutes(db)
 	return server
@@ -40,7 +43,7 @@ func (s *HTTPServer) serve(ctx context.Context, listener net.Listener) error {
 	defer listener.Close()
 
 	server := &http.Server{
-		Handler:           s.mux,
+		Handler:           core_http_middleware.ChainMiddleware(s.mux, s.middleware...),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	serveDone := make(chan error, 1)
