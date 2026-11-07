@@ -1,4 +1,4 @@
-package core_postgres_pool
+package core_pgx_pool
 
 import (
 	"context"
@@ -24,11 +24,11 @@ func TestParsePoolConfigEscapesCredentials(t *testing.T) {
 	}
 }
 
-func TestNewConnectionPoolChecksConnection(t *testing.T) {
+func TestNewPoolChecksConnection(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	pool, err := NewConnectionPool(ctx, Config{
+	pool, err := NewPool(ctx, Config{
 		Host:     "127.0.0.1",
 		Port:     "5432",
 		User:     "managerapp",
@@ -38,9 +38,9 @@ func TestNewConnectionPoolChecksConnection(t *testing.T) {
 	})
 	if pool != nil {
 		pool.Close()
-		t.Fatal("NewConnectionPool() returned a pool for a canceled context")
+		t.Fatal("NewPool() returned a pool for a canceled context")
 	}
 	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("NewConnectionPool() error = %v, want context.Canceled", err)
+		t.Fatalf("NewPool() error = %v, want context.Canceled", err)
 	}
 }
