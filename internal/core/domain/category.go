@@ -5,3 +5,7 @@ type Category struct {
 	Name        string
 	Description *string
 }
+
+func (c Category) Validate() error {
+	return validateCatalogFields(c.Name, c.Description)
+}
