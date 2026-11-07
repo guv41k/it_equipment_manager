@@ -1,0 +1,67 @@
+services:
+
+  managerapp-postgres:
+    image: postgres:18.1-bookworm
+    container_name: managerapp-env-postgres
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - ${PROJECT_ROOT}/out/pgdata:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: always
+
+  managerapp-postgres-migrate:
+    image: migrate/migrate:v4.19.1
+    profiles:
+      - tools
+    volumes:
+      - ${PROJECT_ROOT}/migrations:/migrations
+
+  port-forwarder:
+    image: alpine/socat:1.8.0.3
+    container_name: managerapp-postgres-port-forwarder
+    command: tcp-listen:5432,fork,reuseaddr tcp-connect:managerapp-postgres:5432
+    ports:
+      - "127.0.0.1:5432:5432"
+    depends_on:
+      managerapp-postgres:
+        condition: service_healthy
+
+  managerapp-kafka:
+    image: apache/kafka:4.1.2
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:19092,EXTERNAL://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://managerapp-kafka:19092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@managerapp-kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+    ports:
+      - "127.0.0.1:9092:9092"
+    volumes:
+      - ${PROJECT_ROOT}/out/kafka:/tmp/kraft-combined-logs
+
+  managerapp-clickhouse:
+    image: clickhouse/clickhouse-server:26.8
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ports:
+      - "127.0.0.1:8123:8123"
+      - "127.0.0.1:9000:9000"
+    volumes:
+      - ${PROJECT_ROOT}/out/clickhouse:/var/lib/clickhouse
