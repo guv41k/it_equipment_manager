@@ -10,6 +10,7 @@ import (
 
 	core_logger "gitlab.com/guv41k/it_equipment_manager/internal/core/logger"
 	core_postgres_pool "gitlab.com/guv41k/it_equipment_manager/internal/core/repository/postgres/pool"
+	core_http_middleware "gitlab.com/guv41k/it_equipment_manager/internal/core/transport/http/middleware"
 	core_http_server "gitlab.com/guv41k/it_equipment_manager/internal/core/transport/http/server"
 	"go.uber.org/zap"
 )
@@ -62,7 +63,14 @@ func run(ctx context.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("load HTTP config: %w", err)
 	}
-	httpServer := core_http_server.NewHTTPServer(httpConfig, logger, pool)
+	httpServer := core_http_server.NewHTTPServer(
+		httpConfig,
+		logger,
+		pool,
+		core_http_middleware.RequestID(),
+		core_http_middleware.Logger(logger),
+		core_http_middleware.Recover(logger),
+	)
 	if err := httpServer.Run(ctx); err != nil {
 		return fmt.Errorf("run HTTP server: %w", err)
 	}
