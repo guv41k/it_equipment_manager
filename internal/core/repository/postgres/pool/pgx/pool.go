@@ -50,6 +50,14 @@ func (p *Pool) Query(ctx context.Context, sql string, args ...any) (core_postgre
 	return pgxRows{Rows: rows}, nil
 }
 
+func (p *Pool) Begin(ctx context.Context) (core_postgres_pool.Tx, error) {
+	tx, err := p.Pool.Begin(ctx)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return pgxTx{Tx: tx}, nil
+}
+
 func (p *Pool) QueryRow(ctx context.Context, sql string, args ...any) core_postgres_pool.Row {
 	return pgxRow{Row: p.Pool.QueryRow(ctx, sql, args...)}
 }
