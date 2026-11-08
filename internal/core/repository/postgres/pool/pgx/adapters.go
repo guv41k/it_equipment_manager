@@ -1,6 +1,7 @@
 package core_pgx_pool
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -31,6 +32,30 @@ func (r pgxRow) Scan(dest ...any) error {
 
 type pgxCommandTag struct {
 	pgconn.CommandTag
+}
+
+type pgxTx struct {
+	pgx.Tx
+}
+
+func (tx pgxTx) QueryRow(ctx context.Context, sql string, args ...any) core_postgres_pool.Row {
+	return pgxRow{Row: tx.Tx.QueryRow(ctx, sql, args...)}
+}
+
+func (tx pgxTx) Exec(ctx context.Context, sql string, args ...any) (core_postgres_pool.CommandTag, error) {
+	tag, err := tx.Tx.Exec(ctx, sql, args...)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return pgxCommandTag{CommandTag: tag}, nil
+}
+
+func (tx pgxTx) Commit(ctx context.Context) error {
+	return mapError(tx.Tx.Commit(ctx))
+}
+
+func (tx pgxTx) Rollback(ctx context.Context) error {
+	return mapError(tx.Tx.Rollback(ctx))
 }
 
 func mapError(err error) error {
