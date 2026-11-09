@@ -56,7 +56,7 @@ func (h *HTTPResponseHandler) ErrorResponse(err error, operation string) {
 		h.log.Warn(operation, zap.Error(err))
 		status = http.StatusConflict
 		response.Error = "conflict"
-		response.Message = "record already exists"
+		response.Message = "operation conflicts with current state"
 	default:
 		h.log.Error(operation, zap.Error(err))
 	}
