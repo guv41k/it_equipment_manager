@@ -18,6 +18,9 @@ import (
 	employee_postgres_repository "gitlab.com/guv41k/it_equipment_manager/internal/features/employee/repository/postgres"
 	employee_service "gitlab.com/guv41k/it_equipment_manager/internal/features/employee/service"
 	employee_transport_http "gitlab.com/guv41k/it_equipment_manager/internal/features/employee/transport/http"
+	equipment_postgres_repository "gitlab.com/guv41k/it_equipment_manager/internal/features/equipment/repository/postgres"
+	equipment_service "gitlab.com/guv41k/it_equipment_manager/internal/features/equipment/service"
+	equipment_transport_http "gitlab.com/guv41k/it_equipment_manager/internal/features/equipment/transport/http"
 	"go.uber.org/zap"
 )
 
@@ -76,6 +79,10 @@ func run(ctx context.Context) (err error) {
 	employeesRepository := employee_postgres_repository.NewEmployeesRepository(pool)
 	employeesService := employee_service.NewEmployeesService(employeesRepository)
 	employeesTransportHTTP := employee_transport_http.NewEmployeesHTTPHandler(employeesService)
+	logger.Debug("initializing feature", zap.String("feature", "equipment"))
+	equipmentRepository := equipment_postgres_repository.NewEquipmentRepository(pool)
+	equipmentService := equipment_service.NewEquipmentService(equipmentRepository)
+	equipmentTransportHTTP := equipment_transport_http.NewEquipmentHTTPHandler(equipmentService)
 
 	httpConfig, err := core_http_server.NewConfig()
 	if err != nil {
@@ -94,6 +101,7 @@ func run(ctx context.Context) (err error) {
 	apiVersionRouterV1.AddRoutes(categoriesTransportHTTP.Routes()...)
 	apiVersionRouterV1.AddRoutes(locationsTransportHTTP.Routes()...)
 	apiVersionRouterV1.AddRoutes(employeesTransportHTTP.Routes()...)
+	apiVersionRouterV1.AddRoutes(equipmentTransportHTTP.Routes()...)
 	httpServer.RegisterAPIRouters(apiVersionRouterV1)
 
 	if err := httpServer.Run(ctx); err != nil {
