@@ -13,6 +13,7 @@ type EquipmentService interface {
 	GetEquipmentList(context.Context, *int64, *domain.EquipmentStatus, *int64, *int, *int) ([]domain.Equipment, error)
 	GetEquipment(context.Context, int64) (domain.Equipment, error)
 	UpdateEquipment(context.Context, int64, domain.Equipment) (domain.Equipment, error)
+	RetireEquipment(context.Context, int64) (domain.Equipment, error)
 }
 
 type EquipmentHTTPHandler struct {
@@ -46,6 +47,11 @@ func (h *EquipmentHTTPHandler) Routes() []core_http_server.Route {
 			Method:  http.MethodPut,
 			Path:    "/equipment/{id}",
 			Handler: h.UpdateEquipment,
+		},
+		{
+			Method:  http.MethodPost,
+			Path:    "/equipment/{id}/retire",
+			Handler: h.RetireEquipment,
 		},
 	}
 }

@@ -17,11 +17,13 @@ type equipmentRepositoryStub struct {
 	stored      domain.Equipment
 	saved       domain.Equipment
 	updated     domain.Equipment
+	retired     domain.Equipment
 	list        []domain.Equipment
 	saveCalls   int
 	listCalls   int
 	getCalls    int
 	updateCalls int
+	retireCalls int
 	categoryID  *int64
 	status      *domain.EquipmentStatus
 	locationID  *int64
@@ -31,6 +33,7 @@ type equipmentRepositoryStub struct {
 	listErr     error
 	getErr      error
 	updateErr   error
+	retireErr   error
 }
 
 func (r *equipmentRepositoryStub) SaveEquipment(ctx context.Context, equipment domain.Equipment) (domain.Equipment, error) {
@@ -64,6 +67,13 @@ func (r *equipmentRepositoryStub) UpdateEquipment(ctx context.Context, equipment
 	r.updated = equipment
 	r.updateCalls++
 	return equipment, r.updateErr
+}
+
+func (r *equipmentRepositoryStub) RetireEquipment(ctx context.Context, id int64) (domain.Equipment, error) {
+	r.ctx = ctx
+	r.id = id
+	r.retireCalls++
+	return r.retired, r.retireErr
 }
 
 func validEquipment() domain.Equipment {
@@ -265,6 +275,78 @@ func TestUpdateEquipmentStopsOnInvalidData(t *testing.T) {
 	_, err = NewEquipmentService(repository).UpdateEquipment(context.Background(), 0, input)
 	if !errors.Is(err, core_errors.ErrInvalidArgument) || repository.getCalls != 1 {
 		t.Fatalf("invalid ID error = %v, get calls = %d", err, repository.getCalls)
+	}
+}
+
+func TestRetireEquipment(t *testing.T) {
+	ctx := context.WithValue(context.Background(), struct{}{}, "request")
+	stored := validEquipment()
+	stored.Status = domain.EquipmentStatusInStock
+	retired := stored
+	retired.Status = domain.EquipmentStatusRetired
+	retired.UpdatedAt = stored.UpdatedAt.Add(time.Hour)
+	repository := &equipmentRepositoryStub{
+		stored:  stored,
+		retired: retired,
+	}
+	result, err := NewEquipmentService(repository).RetireEquipment(ctx, stored.ID)
+	if err != nil || result.Status != domain.EquipmentStatusRetired || repository.getCalls != 1 || repository.retireCalls != 1 || repository.id != stored.ID || repository.ctx != ctx {
+		t.Fatalf("RetireEquipment() = %+v, %v; repository = %+v", result, err, repository)
+	}
+}
+
+func TestRetireEquipmentRejectsInvalidState(t *testing.T) {
+	tests := []struct {
+		name   string
+		id     int64
+		status domain.EquipmentStatus
+		want   error
+	}{
+		{
+			name: "invalid ID",
+			id:   0,
+			want: core_errors.ErrInvalidArgument,
+		},
+		{
+			name:   "assigned",
+			id:     11,
+			status: domain.EquipmentStatusAssigned,
+			want:   core_errors.ErrConflict,
+		},
+		{
+			name:   "retired",
+			id:     11,
+			status: domain.EquipmentStatusRetired,
+			want:   core_errors.ErrConflict,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stored := validEquipment()
+			stored.Status = test.status
+			repository := &equipmentRepositoryStub{stored: stored}
+			_, err := NewEquipmentService(repository).RetireEquipment(context.Background(), test.id)
+			if !errors.Is(err, test.want) || repository.retireCalls != 0 {
+				t.Fatalf("RetireEquipment() error = %v; retire calls = %d", err, repository.retireCalls)
+			}
+		})
+	}
+}
+
+func TestRetireEquipmentPreservesRepositoryErrors(t *testing.T) {
+	stored := validEquipment()
+	stored.Status = domain.EquipmentStatusInStock
+	for _, lookup := range []bool{true, false} {
+		repository := &equipmentRepositoryStub{stored: stored}
+		if lookup {
+			repository.getErr = core_errors.ErrNotFound
+		} else {
+			repository.retireErr = core_errors.ErrConflict
+		}
+		_, err := NewEquipmentService(repository).RetireEquipment(context.Background(), 11)
+		if lookup && !errors.Is(err, core_errors.ErrNotFound) || !lookup && !errors.Is(err, core_errors.ErrConflict) {
+			t.Fatalf("RetireEquipment() error = %v", err)
+		}
 	}
 }
 
