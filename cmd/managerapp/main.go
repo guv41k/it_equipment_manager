@@ -12,6 +12,9 @@ import (
 	core_pgx_pool "gitlab.com/guv41k/it_equipment_manager/internal/core/repository/postgres/pool/pgx"
 	core_http_middleware "gitlab.com/guv41k/it_equipment_manager/internal/core/transport/http/middleware"
 	core_http_server "gitlab.com/guv41k/it_equipment_manager/internal/core/transport/http/server"
+	assignment_postgres_repository "gitlab.com/guv41k/it_equipment_manager/internal/features/assignment/repository/postgres"
+	assignment_service "gitlab.com/guv41k/it_equipment_manager/internal/features/assignment/service"
+	assignment_transport_http "gitlab.com/guv41k/it_equipment_manager/internal/features/assignment/transport/http"
 	catalog_postgres_repository "gitlab.com/guv41k/it_equipment_manager/internal/features/catalog/repository/postgres"
 	catalog_service "gitlab.com/guv41k/it_equipment_manager/internal/features/catalog/service"
 	catalog_transport_http "gitlab.com/guv41k/it_equipment_manager/internal/features/catalog/transport/http"
@@ -83,6 +86,10 @@ func run(ctx context.Context) (err error) {
 	equipmentRepository := equipment_postgres_repository.NewEquipmentRepository(pool)
 	equipmentService := equipment_service.NewEquipmentService(equipmentRepository)
 	equipmentTransportHTTP := equipment_transport_http.NewEquipmentHTTPHandler(equipmentService)
+	logger.Debug("initializing feature", zap.String("feature", "assignment"))
+	assignmentsRepository := assignment_postgres_repository.NewAssignmentsRepository(pool)
+	assignmentsService := assignment_service.NewAssignmentsService(assignmentsRepository)
+	assignmentsTransportHTTP := assignment_transport_http.NewAssignmentsHTTPHandler(assignmentsService)
 
 	httpConfig, err := core_http_server.NewConfig()
 	if err != nil {
@@ -102,6 +109,7 @@ func run(ctx context.Context) (err error) {
 	apiVersionRouterV1.AddRoutes(locationsTransportHTTP.Routes()...)
 	apiVersionRouterV1.AddRoutes(employeesTransportHTTP.Routes()...)
 	apiVersionRouterV1.AddRoutes(equipmentTransportHTTP.Routes()...)
+	apiVersionRouterV1.AddRoutes(assignmentsTransportHTTP.Routes()...)
 	httpServer.RegisterAPIRouters(apiVersionRouterV1)
 
 	if err := httpServer.Run(ctx); err != nil {
