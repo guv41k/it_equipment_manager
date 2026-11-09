@@ -60,6 +60,12 @@ func (s *equipmentServiceStub) UpdateEquipment(_ context.Context, id int64, equi
 	return s.result, s.err
 }
 
+func (s *equipmentServiceStub) RetireEquipment(_ context.Context, id int64) (domain.Equipment, error) {
+	s.called = "retire"
+	s.id = id
+	return s.result, s.err
+}
+
 func testEquipmentRouter(t *testing.T, service *equipmentServiceStub) http.Handler {
 	t.Helper()
 	log, err := core_logger.NewLogger(core_logger.Config{
@@ -144,10 +150,20 @@ func TestEquipmentRoutes(t *testing.T) {
 			called: "update",
 			status: http.StatusOK,
 		},
+		{
+			name:   "retire",
+			method: http.MethodPost,
+			path:   "/api/v1/equipment/11/retire",
+			called: "retire",
+			status: http.StatusOK,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			equipment := sampleEquipment()
+			if test.name == "retire" {
+				equipment.Status = domain.EquipmentStatusRetired
+			}
 			service := &equipmentServiceStub{
 				result: equipment,
 				list:   []domain.Equipment{equipment},
@@ -174,6 +190,9 @@ func TestEquipmentRoutes(t *testing.T) {
 					t.Fatalf("update input = %+v, id = %d", service.input, service.id)
 				}
 			}
+			if test.name == "retire" && service.id != 11 {
+				t.Fatalf("retire id = %d", service.id)
+			}
 			if test.name != "list with filters" {
 				var got EquipmentResponse
 				if err := json.Unmarshal(response.Body.Bytes(), &got); err != nil {
@@ -181,6 +200,9 @@ func TestEquipmentRoutes(t *testing.T) {
 				}
 				if got.ID != 11 || got.PurchaseDate == nil || *got.PurchaseDate != "2025-03-02" || got.CreatedAt.Format(time.RFC3339) != "2025-03-03T10:00:00Z" {
 					t.Fatalf("response = %+v", got)
+				}
+				if test.name == "retire" && got.Status != domain.EquipmentStatusRetired {
+					t.Fatalf("retired response = %+v", got)
 				}
 			}
 		})
@@ -231,6 +253,11 @@ func TestEquipmentRejectsInvalidRequest(t *testing.T) {
 			name:   "invalid ID",
 			method: http.MethodGet,
 			path:   "/api/v1/equipment/0",
+		},
+		{
+			name:   "invalid retirement ID",
+			method: http.MethodPost,
+			path:   "/api/v1/equipment/0/retire",
 		},
 		{
 			name:   "invalid category filter",
