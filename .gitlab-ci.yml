@@ -1,0 +1,33 @@
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+stages:
+  - test
+
+go-check:
+  stage: test
+  image: golang:1.27.3
+  script:
+    - test -z "$(gofmt -l .)"
+    - go vet ./...
+    - go test ./...
+
+migration-check:
+  stage: test
+  image:
+    name: migrate/migrate:v4.19.1
+    entrypoint: [""]
+  services:
+    - name: postgres:18.1-bookworm
+      alias: postgres
+  variables:
+    POSTGRES_USER: managerapp_ci
+    POSTGRES_PASSWORD: ci_password
+    POSTGRES_DB: managerapp_ci
+    DATABASE_URL: "postgres://managerapp_ci:ci_password@postgres:5432/managerapp_ci?sslmode=disable"
+  script:
+    - migrate -path migrations -database "$DATABASE_URL" up
+    - migrate -path migrations -database "$DATABASE_URL" down 1
